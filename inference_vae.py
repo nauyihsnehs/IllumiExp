@@ -10,7 +10,7 @@ import torch
 from PIL import Image
 
 from cdf import cdf_to_hdr, load_quantile_cdf
-from ldm.vae import PanoramaVAE, load_checkpoint
+from vae import PanoramaVAE, load_checkpoint
 
 SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
 DEFAULT_CHECKPOINT = SCRIPT_DIR / "ckpts/vae-epoch=19-step=31320.ckpt"

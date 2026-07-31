@@ -10,13 +10,11 @@ import torch
 from PIL import Image
 
 import healpix_unet
-from cldm.ddim import DDIMSampler
-from cldm.model import create_model, load_checkpoint
 from cdf import cdf_to_hdr, hdr_to_cdf, load_quantile_cdf
+from cidm import DDIMSampler, create_model, load_checkpoint
 from pano_tools import pers2pano
 
 SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
-DEFAULT_CONFIG = SCRIPT_DIR / "model.yaml"
 DEFAULT_CHECKPOINT = SCRIPT_DIR / "ckpts/v137-epoch=9-step=52200.ckpt"
 DEFAULT_HPUNET_CHECKPOINT = SCRIPT_DIR / healpix_unet.DEFAULT_CHECKPOINT
 DEFAULT_CDF = SCRIPT_DIR / "cdf_quantile.npz"
@@ -34,7 +32,6 @@ def parse_args():
     parser.add_argument("--output", type=pathlib.Path, default="test_images/outputs")
     parser.add_argument("--healpix", type=pathlib.Path, default="test_images/healpix")
     parser.add_argument("--checkpoint", type=pathlib.Path, default=DEFAULT_CHECKPOINT)
-    parser.add_argument("--config", type=pathlib.Path, default=DEFAULT_CONFIG)
     parser.add_argument("--cdf", type=pathlib.Path, default=DEFAULT_CDF)
     parser.add_argument(
         "--healpix-unet-checkpoint",
@@ -203,7 +200,7 @@ def main():
 
     prepare_healpix(inputs, healpix_paths, args.healpix_unet_checkpoint, device)
     cdf = load_quantile_cdf(args.cdf)
-    model = create_model(args.config)
+    model = create_model()
     loaded, ignored = load_checkpoint(model, args.checkpoint)
     print(f"Loaded {loaded} checkpoint tensors; ignored {ignored} archived tensors")
     model.to(device).eval()
