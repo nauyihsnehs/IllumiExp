@@ -1,0 +1,49 @@
+model:
+  target: cldm.model.ControlLDM
+  params:
+    control_stage_config:
+      target: cldm.model.ControlNet
+      params:
+        image_size: 32
+        in_channels: 4
+        hint_channels: 3
+        hint_channels_hdr: 3
+        model_channels: 320
+        attention_resolutions: [4, 2, 1]
+        num_res_blocks: 2
+        channel_mult: [1, 2, 4, 4]
+        num_heads: 8
+        context_dim: 768
+
+    unet_config:
+      target: cldm.model.ControlledUnetModel
+      params:
+        image_size: 32
+        in_channels: 4
+        out_channels: 4
+        model_channels: 320
+        attention_resolutions: [4, 2, 1]
+        num_res_blocks: 2
+        channel_mult: [1, 2, 4, 4]
+        num_heads: 8
+        context_dim: 768
+        use_spatial_transformer: true
+        use_checkpoint: true
+        legacy: false
+
+    first_stage_config:
+      target: ldm.autoencoder.AutoencoderKL
+      params:
+        embed_dim: 4
+        decoder_config:
+          z_channels: 4
+          resolution: 256
+          in_channels: 3
+          out_ch: 3
+          ch: 128
+          ch_mult: [1, 2, 4, 4]
+          num_res_blocks: 2
+          attn_resolutions: []
+
+    cond_stage_config:
+      target: ldm.encoders.FrozenCLIPEmbedder
