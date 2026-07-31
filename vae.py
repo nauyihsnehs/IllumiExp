@@ -172,9 +172,6 @@ class AutoencoderKL(nn.Module):
         self.decoder = Decoder()
         self.post_quant_conv = nn.Conv2d(LATENT_CHANNELS, LATENT_CHANNELS, 1)
 
-    def decode(self, latent):
-        return self.decoder(self.post_quant_conv(latent))
-
 
 class PanoramaVAE(nn.Module):
     def __init__(self):

@@ -16,7 +16,6 @@ SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
 DEFAULT_CHECKPOINT = SCRIPT_DIR / "ckpts/vae-epoch=19-step=31320.ckpt"
 DEFAULT_CDF = SCRIPT_DIR / "cdf_quantile.npz"
 
-IMAGE_SUFFIXES = {".bmp", ".jpeg", ".jpg", ".png", ".webp"}
 PANORAMA_SIZE = (512, 256)
 EXR_SAVE_PARAMS = [48, 1, 49, 4]
 LUMINANCE_WEIGHTS = np.array([0.2126, 0.7152, 0.0722], dtype=np.float32)
@@ -25,12 +24,9 @@ LUMINANCE_WEIGHTS = np.array([0.2126, 0.7152, 0.0722], dtype=np.float32)
 def parse_args():
     parser = argparse.ArgumentParser(description="IllumiExp VAE HDR panorama inference")
     parser.add_argument("--input", type=pathlib.Path, default="test_images/inputs-vae")
-    parser.add_argument(
-        "--output", type=pathlib.Path, default="test_images/outputs-vae"
-    )
+    parser.add_argument("--output", type=pathlib.Path, default="test_images/outputs-vae")
     parser.add_argument("--checkpoint", type=pathlib.Path, default=DEFAULT_CHECKPOINT)
     parser.add_argument("--cdf", type=pathlib.Path, default=DEFAULT_CDF)
-    parser.add_argument("--device", default="cuda")
     parser.add_argument("--seed", type=int, default=114514)
     return parser.parse_args()
 
@@ -39,11 +35,7 @@ def collect_inputs(path):
     path = path.expanduser().resolve()
     if path.is_file():
         return [path]
-    return sorted(
-        item
-        for item in path.iterdir()
-        if item.is_file() and item.suffix.lower() in IMAGE_SUFFIXES
-    )
+    return sorted(item for item in path.iterdir() if item.is_file())
 
 
 def resolve_outputs(inputs, output):
@@ -93,7 +85,7 @@ def main():
     args = parse_args()
     inputs = collect_inputs(args.input)
     outputs = resolve_outputs(inputs, args.output)
-    device = torch.device(args.device)
+    device = torch.device("cuda")
     cdf = load_quantile_cdf(args.cdf)
     seed_random(args.seed)
 

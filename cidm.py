@@ -9,7 +9,7 @@ from transformers import CLIPVisionConfig, CLIPVisionModel
 from vae import AutoencoderKL, load_checkpoint
 
 
-__all__ = ["DDIMSampler", "create_model", "load_checkpoint"]
+__all__ = ["ControlLDM", "DDIMSampler", "load_checkpoint"]
 
 
 MODEL_CHANNELS = 320
@@ -405,9 +405,6 @@ class FrozenCLIPEmbedder(nn.Module):
     def forward(self, images):
         return self.vision(images).last_hidden_state
 
-    def encode(self, images):
-        return self(images)
-
 
 class ControlLDM(nn.Module):
     def __init__(self):
@@ -438,12 +435,6 @@ class ControlLDM(nn.Module):
             "alphas_cumprod_prev",
             torch.tensor(alphas_cumprod_prev, dtype=torch.float32),
         )
-
-    def get_learned_conditioning(self, images):
-        return self.cond_stage_model.encode(images)
-
-    def decode_first_stage(self, latent):
-        return self.first_stage_model.decode(latent / self.scale_factor)
 
     def apply_model(self, noisy, timesteps, condition):
         context = torch.cat(condition["c_crossattn"], dim=1)
@@ -536,7 +527,3 @@ class DDIMSampler:
         direction = torch.sqrt(1.0 - alpha_prev - sigma.square()) * predicted_noise
         noise = sigma * torch.randn(latent.shape, device=latent.device)
         return alpha_prev.sqrt() * predicted_start + direction + noise
-
-
-def create_model():
-    return ControlLDM()

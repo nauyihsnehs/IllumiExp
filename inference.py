@@ -11,7 +11,7 @@ from PIL import Image
 
 import healpix_unet
 from cdf import cdf_to_hdr, hdr_to_cdf, load_quantile_cdf
-from cidm import DDIMSampler, create_model, load_checkpoint
+from cidm import ControlLDM, DDIMSampler, load_checkpoint
 from pano_tools import pers2pano
 
 SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
@@ -19,7 +19,6 @@ DEFAULT_CHECKPOINT = SCRIPT_DIR / "ckpts/v137-epoch=9-step=52200.ckpt"
 DEFAULT_HPUNET_CHECKPOINT = SCRIPT_DIR / healpix_unet.DEFAULT_CHECKPOINT
 DEFAULT_CDF = SCRIPT_DIR / "cdf_quantile.npz"
 
-IMAGE_SUFFIXES = {".bmp", ".jpeg", ".jpg", ".png", ".webp"}
 PANORAMA_SIZE = (512, 256)
 EXR_SAVE_PARAMS = [48, 1, 49, 4]
 LUMINANCE_WEIGHTS = np.array([0.2627, 0.6780, 0.0593], dtype=np.float32)
@@ -30,7 +29,6 @@ def parse_args():
     parser = argparse.ArgumentParser(description="IllumiExp HDR panorama inference")
     parser.add_argument("--input", type=pathlib.Path, default="test_images/inputs")
     parser.add_argument("--output", type=pathlib.Path, default="test_images/outputs")
-    parser.add_argument("--healpix", type=pathlib.Path, default="test_images/healpix")
     parser.add_argument("--checkpoint", type=pathlib.Path, default=DEFAULT_CHECKPOINT)
     parser.add_argument("--cdf", type=pathlib.Path, default=DEFAULT_CDF)
     parser.add_argument(
@@ -38,12 +36,8 @@ def parse_args():
         type=pathlib.Path,
         default=DEFAULT_HPUNET_CHECKPOINT,
     )
-    parser.add_argument("--device", default="cuda")
     parser.add_argument("--seed", type=int, default=114514)
     parser.add_argument("--steps", type=int, default=50)
-    parser.add_argument("--eta", type=float, default=0.0)
-    parser.add_argument("--strength", type=float, default=1.0)
-    parser.add_argument("--fov", type=float, default=90.0)
     return parser.parse_args()
 
 
@@ -51,43 +45,13 @@ def collect_inputs(path):
     path = path.expanduser().resolve()
     if path.is_file():
         return [path]
-    inputs = sorted(
-        item
-        for item in path.iterdir()
-        if item.is_file() and item.suffix.lower() in IMAGE_SUFFIXES
-    )
-    return inputs
+    return sorted(item for item in path.iterdir() if item.is_file())
 
 
 def resolve_outputs(inputs, output):
-    output = output.expanduser().resolve()
-    output_is_file = output.suffix.lower() == ".exr" and not output.is_dir()
-    if output_is_file:
-        return [output], output.parent
-    return [output / f"{item.stem}.exr" for item in inputs], output
-
-
-def resolve_healpix_paths(inputs, healpix, output_root):
-    if healpix is None:
-        cache_root = output_root / "healpix"
-        return [cache_root / f"{item.stem}_hp.exr" for item in inputs]
-
-    healpix = healpix.expanduser().resolve()
-    is_file = healpix.suffix.lower() == ".exr" and not healpix.is_dir()
-    if is_file:
-        return [healpix]
-    return [healpix / f"{item.stem}_hp.exr" for item in inputs]
-
-
-def resolve_c_concat_paths(outputs, healpix, output_root):
-    cache_root = output_root / "c_concat"
-    if healpix is not None and healpix.suffix.lower() != ".exr":
-        cache_root = healpix.expanduser().resolve().parent / "c_concat"
-    return [cache_root / f"{output_path.stem}_c_concat.png" for output_path in outputs]
-
-
-def resolve_device(name):
-    return torch.device(name)
+    output_root = output.expanduser().resolve()
+    outputs = [output_root / "hdr" / f"{item.stem}.exr" for item in inputs]
+    return outputs, output_root
 
 
 def read_rgb(path):
@@ -106,7 +70,7 @@ def write_exr(path, rgb):
     cv.imwrite(str(path), bgr, EXR_SAVE_PARAMS)
 
 
-def write_c_concat(path, tensor):
+def write_concat(path, tensor):
     path.parent.mkdir(parents=True, exist_ok=True)
     rgb = tensor[0].permute(1, 2, 0).detach().cpu().numpy()
     rgb = np.clip((rgb + 1.0) * 127.5, 0, 255).astype(np.uint8)
@@ -114,16 +78,9 @@ def write_c_concat(path, tensor):
     print(path)
 
 
-def prepare_healpix(inputs, paths, checkpoint, device):
-    missing = [
-        (input_path, healpix_path)
-        for input_path, healpix_path in zip(inputs, paths)
-        if not healpix_path.is_file()
-    ]
-    if not missing:
-        return
-    print(f"Generating {len(missing)} missing Healpix cache files")
-    for input_path, healpix_path in missing:
+def generate_healpix(inputs, paths, checkpoint, device):
+    print(f"Generating {len(inputs)} Healpix files")
+    for input_path, healpix_path in zip(inputs, paths):
         predicted = healpix_unet.predict(read_rgb(input_path), checkpoint, device)
         write_exr(healpix_path, predicted)
         print(healpix_path)
@@ -156,10 +113,10 @@ def match_healpix_brightness(hdr, healpix):
     return hdr * scale
 
 
-def run_inference(model, sampler, image, healpix, cdf, args, device, c_concat_path):
+def run_inference(model, sampler, image, healpix, cdf, args, device, concat_path):
     quantile_x, quantile_p, max_value = cdf
     input_image = np.asarray(Image.fromarray(image).resize((224, 224))) / 255.0
-    panorama = pers2pano(input_image, PANORAMA_SIZE, vfov=args.fov)
+    panorama = pers2pano(input_image, PANORAMA_SIZE, vfov=90.0)
     panorama = normalize_tensor(panorama, device)
 
     condition = normalize_tensor(input_image, device).permute(2, 0, 1)[None]
@@ -174,18 +131,18 @@ def run_inference(model, sampler, image, healpix, cdf, args, device, c_concat_pa
     conditioning = {
         "c_concat": [panorama],
         "c_hdr": [healpix_encoded],
-        "c_crossattn": [model.get_learned_conditioning(condition)],
+        "c_crossattn": [model.cond_stage_model(condition)],
     }
-    write_c_concat(c_concat_path, conditioning["c_concat"][0])
-    model.control_scales = [args.strength] * 13
+    write_concat(concat_path, conditioning["c_concat"][0])
     seed_random(args.seed)
     latent = sampler.sample(
         args.steps,
         (1, 4, PANORAMA_SIZE[1] // 8, PANORAMA_SIZE[0] // 8),
         conditioning,
-        args.eta,
     )
-    decoded = model.decode_first_stage(latent)[0].permute(1, 2, 0).cpu().numpy()
+    latent = model.first_stage_model.post_quant_conv(latent / model.scale_factor)
+    decoded = model.first_stage_model.decoder(latent)[0]
+    decoded = decoded.permute(1, 2, 0).cpu().numpy()
     hdr = cdf_to_hdr(decoded, quantile_x, quantile_p, max_value)
     return match_healpix_brightness(hdr, healpix_hdr)
 
@@ -194,24 +151,28 @@ def main():
     args = parse_args()
     inputs = collect_inputs(args.input)
     outputs, output_root = resolve_outputs(inputs, args.output)
-    healpix_paths = resolve_healpix_paths(inputs, args.healpix, output_root)
-    c_concat_paths = resolve_c_concat_paths(outputs, args.healpix, output_root)
-    device = resolve_device(args.device)
+    healpix_paths = [
+        output_root / "healpix" / f"{item.stem}_hp.exr" for item in inputs
+    ]
+    concat_paths = [
+        output_root / "concat" / f"{item.stem}_c_concat.png" for item in inputs
+    ]
+    device = torch.device("cuda")
 
-    prepare_healpix(inputs, healpix_paths, args.healpix_unet_checkpoint, device)
+    generate_healpix(inputs, healpix_paths, args.healpix_unet_checkpoint, device)
     cdf = load_quantile_cdf(args.cdf)
-    model = create_model()
+    model = ControlLDM()
     loaded, ignored = load_checkpoint(model, args.checkpoint)
     print(f"Loaded {loaded} checkpoint tensors; ignored {ignored} archived tensors")
     model.to(device).eval()
     sampler = DDIMSampler(model)
 
     with torch.inference_mode():
-        for input_path, healpix_path, output_path, c_concat_path in zip(
+        for input_path, healpix_path, output_path, concat_path in zip(
             inputs,
             healpix_paths,
             outputs,
-            c_concat_paths,
+            concat_paths,
         ):
             image = read_rgb(input_path)
             healpix = read_healpix(healpix_path)
@@ -223,7 +184,7 @@ def main():
                 cdf,
                 args,
                 device,
-                c_concat_path,
+                concat_path,
             )
             write_exr(output_path, result)
             print(output_path)

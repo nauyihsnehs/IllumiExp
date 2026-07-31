@@ -12,8 +12,8 @@ from torchvision.models import convnext_base
 DEFAULT_RESOLUTION = 224
 DEFAULT_PANO_SIZE = (512, 256)
 DEFAULT_CHECKPOINT = pathlib.Path(
-    # "ckpts/hpunet_n32_epoch=199-val_loss=0.07196.ckpt"
-    "ckpts/hpunet_n16_epoch=99-val_loss=0.04170.ckpt"
+    "ckpts/hpunet_n32_epoch=199-val_loss=0.07196.ckpt"
+    # "ckpts/hpunet_n16_epoch=99-val_loss=0.04170.ckpt"
 )
 
 _CACHED_MODEL = None
