@@ -10,8 +10,7 @@ LATENT_CHANNELS = 4
 
 
 def load_checkpoint(model, path):
-    checkpoint = torch.load(path, map_location="cpu")
-    state_dict = checkpoint.get("state_dict", checkpoint)
+    state_dict = torch.load(path, map_location="cpu", weights_only=True)
     model_state = model.state_dict()
     filtered = {name: value for name, value in state_dict.items() if name in model_state}
     model.load_state_dict(filtered, strict=False)

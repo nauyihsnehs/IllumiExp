@@ -1,3 +1,4 @@
+import math
 import pathlib
 
 import cv2 as cv
@@ -160,10 +161,9 @@ def load_model(checkpoint_path, device):
     if _CACHED_MODEL is not None and _CACHED_KEY == key:
         return _CACHED_MODEL
 
-    checkpoint = torch.load(path, map_location=device)
-    nside = int(checkpoint.get("hyper_parameters", {}).get("nside", 16))
+    state_dict = torch.load(path, map_location=device, weights_only=True)
+    nside = math.isqrt(state_dict["neighbor_counts"].shape[0] // 12)
     model = HPUNet(nside)
-    state_dict = checkpoint.get("state_dict", checkpoint)
     model.load_state_dict(state_dict, strict=False)
 
     model.to(device).eval()
