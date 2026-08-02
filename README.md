@@ -25,7 +25,7 @@ IllumiExp/
 ```bash
 conda create -n illumiexp python=3.11 -y
 conda activate illumiexp
-conda install pytorch==2.7.1 torchvision==0.22.1 pytorch-cuda=11.8 -c pytorch -c nvidia
+pip install torch==2.7.1 torchvision==0.22.1 --index-url https://download.pytorch.org/whl/cu118
 pip install -r requirements.txt
 ```
 
@@ -80,7 +80,7 @@ Training code is planned for a future release.
 
 ## Acknowledgements
 
-This project builds on ideas and components from [IllumiDiff](https://github.com/nauyihsnehs/illumidiff), [ControlNet](https://github.com/lllyasviel/ControlNet), [Latent Diffusion Models](https://github.com/CompVis/latent-diffusion), and [Skylibs](https://github.com/soravux/skylibs).
+This project builds on ideas and components from [IllumiDiff](https://github.com/nauyihsnehs/illumidiff), [ControlNet](https://github.com/lllyasviel/ControlNet), [NNhealpix](https://github.com/aasensio/sphericalCNN), and [Skylibs](https://github.com/soravux/skylibs).
 
 ## Citation
 
