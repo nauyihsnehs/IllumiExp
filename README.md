@@ -22,6 +22,8 @@ IllumiExp/
 
 ## Environment
 
+Healpy does not currently support [Windows](https://github.com/healpy/healpy/issues/25).
+
 ```bash
 conda create -n illumiexp python=3.11 -y
 conda activate illumiexp
