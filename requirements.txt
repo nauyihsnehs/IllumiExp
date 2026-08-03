@@ -1,3 +1,4 @@
+lightning
 numpy
 opencv-python<5
 Pillow
