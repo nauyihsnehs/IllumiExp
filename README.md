@@ -5,7 +5,7 @@
 **[📘Paper](https://doi.org/10.1109/TIP.2026.3718440)** · **[🤗Demo](https://huggingface.co/spaces/shenshiyuan/IllumiExp)**
 
 <p>
-  <img src="test_images/teaser.svg" alt="IllumiExp teaser" width="20%">
+  <img src="test_images/teaser.svg" alt="IllumiExp teaser" width="40%">
 </p>
 
 ## Repository structure
