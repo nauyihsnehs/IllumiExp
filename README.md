@@ -4,13 +4,17 @@
 
 **[📘Paper](https://doi.org/10.1109/TIP.2026.3718440)** · **[🤗Demo](https://huggingface.co/spaces/shenshiyuan/IllumiExp)**
 
+<p>
+  <img src="test_images/teaser.svg" alt="IllumiExp teaser" width="20%">
+</p>
+
 ## Repository structure
 
 ```text
 IllumiExp/
-├── ckpts/                 # Pretrained checkpoints (download separately)
+├── ckpts/                 # Pretrained checkpoints
 ├── cdf.py                 # HDR/CDF transforms
-├── cdf_quantile.npz       # CDF statistics used by the released models
+├── cdf_quantile.npz       # CDF statistics
 ├── cidm.py                # Conditional illumination diffusion model and sampler
 ├── healpix_unet.py        # HEALPix illumination predictor
 ├── inference.py           # Full single-image-to-HDR inference pipeline
@@ -101,3 +105,5 @@ If you find this work useful, please cite:
 ## Contact
 
 For questions, please contact [syshen@whu.edu.cn](mailto:syshen@whu.edu.cn).
+
+[![Visitors](https://visitor-badge.laobi.icu/badge?page_id=nauyihsnehs.IllumiExp)](https://visitor-badge.laobi.icu/)
